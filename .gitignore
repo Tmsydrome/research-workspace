@@ -1,0 +1,22 @@
+/dist/
+/source materials/
+/local/
+/projects/
+/snapshots/
+/recovery/
+__pycache__/
+*.py[cod]
+workspace.json
+.workspace.lock
+*_results.json
+*.rwp
+*.doc
+*.docx
+*.xls
+*.xlsx
+*.ppt
+*.pptx
+*.pdf
+.env
+.env.*
+*.log
