@@ -1,10 +1,11 @@
-"""Hidden-window regression checks for Research Workspace 1.0.0."""
+"""Hidden-window regression checks for Research Workspace 1.0.1."""
 import ctypes,json,os,struct,tempfile,time,tkinter as tk
 from pathlib import Path
 from unittest.mock import patch
 from types import SimpleNamespace
 from workspace import VERSION,Workspace,file_hash,children,branch
 from app import App
+from themes import THEMES,SELECTION_EDGE
 from native_drop import COMObject,FORMATETC,STGMEDIUM,POINTL,PVOID,DWORD,HRESULT,CALL,method
 CHECKS=[]
 def passed(label):
@@ -26,6 +27,66 @@ def main():
         assert app.ws.data["preferences"]["theme"]=="ocean"
         app.load_map(mindmap)
         passed("初始根节点和三级子节点、深蓝默认主题")
+        first_child=children(app.ws.data,node)[0]
+        second_child=children(app.ws.data,first_child)[0]
+        leaf=children(app.ws.data,second_child)[0]
+        original_nodes=json.dumps(app.ws.data["nodes"],sort_keys=True)
+        selection=set(app.selected)
+        def fold_event(i):
+            x1,y1,x2,y2=app.fold_hits[i]
+            assert x2-x1>=24 and y2-y1>=24
+            return SimpleNamespace(x=(x1+x2)/2-app.canvas.canvasx(0),
+                                   y=(y1+y2)/2-app.canvas.canvasy(0),state=0)
+        assert set(app.fold_hits)=={node,first_child,second_child} and leaf not in app.fold_hits
+        with patch.object(app,"open_attachment") as opened:
+            e=fold_event(node)
+            assert app.canvas_press(e)=="break"
+            app.canvas_release(e)
+            assert not opened.called and app.drag is None
+        assert app.visible==[node] and not app.outline.item(node,"open")
+        assert app.selected==selection and len(app.ws.data["nodes"])==4
+        app.undo();assert len(app.visible)==4 and app.outline.item(node,"open")
+        app.undo(True);assert app.visible==[node]
+        app.canvas_press(fold_event(node))
+        assert json.dumps(app.ws.data["nodes"],sort_keys=True)==original_nodes
+        passed("导图折叠按钮命中、整分支收放、内容保留、撤销重做及选择保留")
+        app.toggle_node(second_child)
+        app.toggle_node(first_child)
+        app.toggle_node(first_child)
+        assert second_child in app.visible and leaf not in app.visible
+        app.toggle_node(second_child)
+        app.outline.focus(first_child)
+        app.outline.event_generate("<<TreeviewClose>>")
+        assert app.ws.data["nodes"][first_child]["collapsed"] and second_child not in app.boxes
+        app.outline.event_generate("<<TreeviewOpen>>")
+        assert not app.ws.data["nodes"][first_child]["collapsed"] and leaf in app.boxes
+        app.canvas.xview_moveto(.2);app.canvas.yview_moveto(.1)
+        assert app.fold_at(fold_event(first_child).x,fold_event(first_child).y)==first_child
+        app.canvas.xview_moveto(0);app.canvas.yview_moveto(0)
+        app.set_collapsed(first_child,True);assert app.save()
+        on_disk=json.loads((app.ws.root/"workspace.json").read_text(encoding="utf-8"))
+        assert on_disk["nodes"][first_child]["collapsed"]
+        app.set_collapsed(first_child,False)
+        passed("嵌套折叠状态保留、双视图事件同步、滚动后按钮命中及保存")
+        for palette in THEMES.values():
+            app.theme=palette;app.apply_theme();app.select_node(first_child)
+            assert app.style.lookup("Outline.Treeview","background",("selected",))==palette["outline_selection"]
+            assert int(app.style.lookup("Outline.Treeview","indicatorsize"))==21
+            checked=app.outline_image(first_child)
+            assert checked.width()>=32 and checked.height()==32
+            assert str(checked) in app.outline.item(first_child,"image")
+            assert "☑" not in app.outline.item(first_child,"text")
+            assert any(app.canvas.itemcget(item,"outline")==SELECTION_EDGE for item in app.canvas.find_withtag(first_child)
+                       if app.canvas.type(item)=="polygon")
+        app.theme=THEMES["ocean"];app.apply_theme();app.select_node(node)
+        for zoom in (.2,.6,1,2.5):
+            app.zoom=zoom;app.render()
+            for i,box in app.fold_hits.items():
+                assert box[2]-box[0]>=24
+                for child_id in children(app.ws.data,i):
+                    if child_id in app.boxes:assert box[2]<=app.boxes[child_id][0]
+        app.zoom=1;app.render()
+        passed("五套主题淡色选择、大纲大箭头与勾选图标、缩放按钮点击空间")
         legacy=app.ws.data["nodes"][node]
         legacy.update(title="研究主题",bodyRichText={"text":"既有内容","highlights":[]},notes="补充记录")
         expected="研究主题\n既有内容\n补充记录"

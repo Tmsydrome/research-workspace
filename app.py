@@ -1,4 +1,4 @@
-"""Research Workspace desktop application, version 1.0.0."""
+"""Research Workspace desktop application, version 1.0.1."""
 from __future__ import annotations
 import copy
 import ctypes
@@ -12,7 +12,7 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, simpledialog, colorchooser
 from pathlib import Path
 from tkinter import font as tkfont
-from themes import THEMES, DEFAULT_STYLE, NODE_PRESETS, configure_style, node_colors
+from themes import THEMES, DEFAULT_STYLE, NODE_PRESETS, SELECTION_EDGE, configure_style, node_colors
 from workspace import (VERSION, Workspace, branch, children, ordered_nodes, node_path,
     project_path, make_outline, restore_backup, clean_name)
 
@@ -21,7 +21,7 @@ class App:
         self.root, self.ws, self.map_id, self.focus_node = root, None, None, None
         self.selected, self.boxes, self.visible = set(), {}, []
         self.selection_source="node"
-        self.attachment_hits,self.title_y={},{}
+        self.attachment_hits,self.title_y,self.fold_hits={},{},{}
         self.loading, self.busy, self.dirty, self.save_job = False, False, False, None
         self.zoom, self.drag, self.anchor = 1.0, None, None
         self.inline_edit,self.html_bridge=None,None
@@ -397,6 +397,7 @@ class App:
 
     def apply_theme(self):
         configure_style(self.style,self.theme)
+        self.create_outline_icons()
         p=self.theme
         self.root.configure(background=p["ui"])
         self.root.option_add("*TCombobox*Listbox.background",p["panel"])
@@ -526,6 +527,30 @@ class App:
                         if pixel=="1":icon.put("#ffffff",to=(6+x*2,7+y*2,8+x*2,9+y*2))
             self.file_icons[kind]=icon
 
+    def create_outline_icons(self):
+        self.outline_icons={}
+        for selected in (False,True):
+            for kind in (None,*self.file_icons):
+                icon=tk.PhotoImage(master=self.root,width=56 if kind else 32,height=32)
+                edge=self.theme["text"] if selected else self.theme["muted"]
+                icon.put(edge,to=(4,4,28,28))
+                icon.put(self.theme["outline_selection"] if selected else self.theme["outline"],to=(6,6,26,26))
+                if selected:
+                    for x in range(9,16):
+                        y=14+x-9
+                        icon.put(edge,to=(x,y,x+2,y+3))
+                    for x in range(15,24):
+                        y=20-(x-15)
+                        icon.put(edge,to=(x,y,x+2,y+3))
+                if kind:
+                    icon.tk.call(str(icon),"copy",str(self.file_icons[kind]),"-to",34,5)
+                self.outline_icons[(selected,kind)]=icon
+
+    def outline_image(self,i):
+        files=self.ws.data["nodes"][i]["attachmentIds"]
+        kind=self.attachment_kind(self.ws.data["attachments"][files[0]]) if files else None
+        return self.outline_icons[(i in self.selected,kind)]
+
     def draw_attachment_icon(self,x,y,z,tags,record,badge=False):
         kind=self.attachment_kind(record)
         letter,ink,_=self.FILE_TYPES[kind]
@@ -551,7 +576,7 @@ class App:
         return "\n".join(x for x in (n["title"],n["bodyRichText"]["text"],n["notes"]) if x)
 
     def canvas_double_click(self,e):
-        if self.attachment_at(e.x,e.y):
+        if self.fold_at(e.x,e.y) or self.attachment_at(e.x,e.y):
             return "break"
         i=self.node_at(e.x,e.y)
         if i:
@@ -569,6 +594,7 @@ class App:
     def outline_double_click(self,e):
         i=self.outline.identify_row(e.y)
         if not i:return "break"
+        if "indicator" in self.outline.identify_element(e.x,e.y):return "break"
         self.select_node(i)
         if self.outline.identify_column(e.x)=="#1":
             files=self.ws.data["nodes"][i]["attachmentIds"]
@@ -594,7 +620,7 @@ class App:
             box=self.outline.bbox(i,"#0")
             if not box:return
             depth=len(node_path(self.ws.data,i))-1
-            inset=34+depth*20
+            inset=70+depth*20+(24 if self.ws.data["nodes"][i]["attachmentIds"] else 0)
             x,y,width,height=box
             x+=inset;width=max(160,width-inset-8)
             height=max(68,min(240,28*(self.node_content(i).count("\n")+1)))
@@ -602,7 +628,7 @@ class App:
         entry=tk.Text(parent,wrap="word",undo=True,font=("Microsoft YaHei UI",11),
                       bg=self.theme["panel"],fg=self.theme["text"],insertbackground=self.theme["text"],
                       selectbackground=self.theme["selection"],bd=0,highlightthickness=3,
-                      highlightbackground="#ffd84d",highlightcolor="#ffd84d",padx=8,pady=6)
+                      highlightbackground=SELECTION_EDGE,highlightcolor=SELECTION_EDGE,padx=8,pady=6)
         entry.insert("1.0",self.node_content(i))
         entry.place(x=x,y=y,width=width,height=height)
         self.inline_edit={"node":i,"entry":entry}
@@ -1045,7 +1071,7 @@ class App:
             self.render_job=None
         self.canvas.delete("all")
         self.boxes,self.visible={},[]
-        self.attachment_hits,self.title_y={},{}
+        self.attachment_hits,self.title_y,self.fold_hits={},{},{}
         p=self.theme
         if not self.ws or self.map_id not in self.ws.data["mindmaps"]:
             self.outline.delete(*self.outline.get_children())
@@ -1122,7 +1148,7 @@ class App:
         x_positions={root:60}
         for i in self.visible[1:]:
             parent=data["nodes"][i]["parentId"]
-            x_positions[i]=x_positions[parent]+widths[parent]+56
+            x_positions[i]=x_positions[parent]+widths[parent]+max(56,32/z)
         extent=max((x_positions[i]+widths[i]+60)*z for i in self.visible)
         pad_x=max(0,(self.canvas.winfo_width()-extent)/2)
         pad_y=max(0,(self.canvas.winfo_height()-height*z)/2)
@@ -1160,12 +1186,12 @@ class App:
                 fg=p["text"] if p is not THEMES["paper"] else ("#ffffff" if bg==p["accent"] else p["text"])
             tags=("node",i)
             selected=i in self.selected
-            edge="#ffd84d" if selected else p["accent"] if d==0 else colors[i] if d==1 else p["border"]
+            edge=SELECTION_EDGE if selected else p["accent"] if d==0 else colors[i] if d==1 else p["border"]
             self.rounded_box((x1+2*z,y1+3*z,x2+2*z,y2+3*z),p["ui"],p["ui"],1,tags)
             self.rounded_box(self.boxes[i],bg,edge,max(3,5*z) if selected else (3 if d==0 else 1)*z,tags)
             files=n["attachmentIds"]
             file_node=len(files)==1 and n["title"]==data["attachments"][files[0]]["originalName"] and not n["bodyRichText"]["text"] and not n["notes"]
-            label=self.node_content(i)+("  ▸" if n["collapsed"] and kids_of(i) else "")
+            label=self.node_content(i)
             title_height=heights[i]-(0 if file_node else len(files)*30)
             self.title_y[i]=y1+title_height*z/2
             self.canvas.create_text(x1+14*z,self.title_y[i],text=label,anchor="w",
@@ -1185,6 +1211,16 @@ class App:
                         width=(widths[i]-58)*z,fill=fg,font=("Microsoft YaHei UI",max(5,int(9*z))),
                         tags=tags+("attachment",a))
                     row_top+=30*z
+            if kids_of(i):
+                radius=max(12,min(20,16*z))
+                cx,cy=x2+max(56*z,32)/2,(y1+y2)/2
+                box=(cx-radius,cy-radius,cx+radius,cy+radius)
+                self.fold_hits[i]=box
+                fold_tags=("fold",i)
+                self.rounded_box(box,p["panel"],p["muted"],1.5,fold_tags)
+                arrow=radius*.42
+                points=(cx-arrow/2,cy-arrow,cx+arrow,cy,cx-arrow/2,cy+arrow) if n["collapsed"] else (cx-arrow,cy-arrow/2,cx+arrow,cy-arrow/2,cx,cy+arrow)
+                self.canvas.create_polygon(*points,fill=p["text"],tags=fold_tags)
         maxx=max(b[2] for b in self.boxes.values())+60*z
         maxy=max(b[3] for b in self.boxes.values())+60*z
         self.canvas.configure(scrollregion=(0,0,maxx+pad_x,maxy+pad_y))
@@ -1198,7 +1234,7 @@ class App:
             self.outline_map=self.map_id
         for i in complete:
             n=data["nodes"][i]
-            label=("☑ " if i in self.selected else "☐ ")+self.node_content(i).replace("\n","  /  ")
+            label=self.node_content(i).replace("\n","  /  ")
             a=n["attachmentIds"]
             pill=(self.ws.data["attachments"][a[0]]["type"].lstrip(".").upper()+f" · {len(a)}") if a else ""
             tags=["branch" if kids_of(i) else "leaf"]
@@ -1209,10 +1245,10 @@ class App:
                 tags.append(tag)
             values=(pill,)
             if self.outline.exists(i):
-                self.outline.item(i,text=label,image=self.file_icons[self.attachment_kind(data["attachments"][a[0]])] if a else "",values=values,tags=tags,open=not n["collapsed"])
+                self.outline.item(i,text=label,image=self.outline_image(i),values=values,tags=tags,open=not n["collapsed"])
                 self.outline.move(i,n["parentId"] or "","end")
             else:
-                self.outline.insert(n["parentId"] or "","end",iid=i,text=label,image=self.file_icons[self.attachment_kind(data["attachments"][a[0]])] if a else "",values=values,tags=tags,open=not n["collapsed"])
+                self.outline.insert(n["parentId"] or "","end",iid=i,text=label,image=self.outline_image(i),values=values,tags=tags,open=not n["collapsed"])
         for i in self.outline_ids-set(complete):
             if self.outline.exists(i):
                 self.outline.delete(i)
@@ -1267,7 +1303,7 @@ class App:
                 self.minimap.create_line(7+a[2]*scale,7+(a[1]+a[3])*scale/2,
                     7+box[0]*scale,7+(box[1]+box[3])*scale/2,fill=self.theme["branch"])
             self.minimap.create_rectangle(*(7+v*scale for v in box),
-                outline="#ffd84d" if i in self.selected else self.theme["branch"],
+                outline=SELECTION_EDGE if i in self.selected else self.theme["branch"],
                 fill=self.theme["panel"])
         self.minimap_viewport()
 
@@ -1324,8 +1360,14 @@ class App:
         self.load_editor(i)
 
     def canvas_hover(self,e):
-        hand=self.attachment_at(e.x,e.y) or not self.node_at(e.x,e.y)
+        hand=self.fold_at(e.x,e.y) or self.attachment_at(e.x,e.y) or not self.node_at(e.x,e.y)
         self.canvas.configure(cursor="hand2" if hand else "")
+
+    def fold_at(self,x,y):
+        x,y=self.canvas.canvasx(x),self.canvas.canvasy(y)
+        for i,box in self.fold_hits.items():
+            if box[0]<=x<=box[2] and box[1]<=y<=box[3]:return i
+        return None
 
     def canvas_press(self,e):
         self.selection_source="node"
@@ -1333,6 +1375,11 @@ class App:
         if not self.guard() or not self.map_id:
             return
         self.canvas.focus_set()
+        folded=self.fold_at(e.x,e.y)
+        if folded:
+            self.drag=None
+            self.toggle_node(folded)
+            return "break"
         i=self.node_at(e.x,e.y)
         if not i:
             self.drag={"pan":True,"x":e.x,"y":e.y}
@@ -1436,7 +1483,7 @@ class App:
         if set(self.outline.selection())!=self.selected:
             self.outline.selection_set(list(self.selected))
         for i in ordered_nodes(self.ws.data,self.map_id) if self.map_id else []:
-            self.outline.item(i,text=("☑ " if i in self.selected else "☐ ")+self.node_content(i).replace("\n","  /  "))
+            self.outline.item(i,text=self.node_content(i).replace("\n","  /  "),image=self.outline_image(i))
         self.loading=False
         if getattr(self,"editor_node",None)!=self.focus_node:
             self.load_editor(self.focus_node)
@@ -1457,10 +1504,17 @@ class App:
             return
         i=self.outline.focus()
         if i:
-            self.checkpoint()
-            self.ws.data["nodes"][i]["collapsed"]=collapsed
-            self.changed()
-            self.root.after_idle(self.render)
+            self.focus_node=i
+            self.set_collapsed(i,collapsed)
+
+    def set_collapsed(self,i,collapsed):
+        if not self.guard() or i not in self.ws.data["nodes"]:return
+        n=self.ws.data["nodes"][i]
+        if n["collapsed"]==collapsed or not children(self.ws.data,i):return
+        self.checkpoint()
+        n["collapsed"]=collapsed
+        self.changed()
+        self.render()
 
     def node_context(self,e):
         self.selection_source="node"
@@ -1526,13 +1580,10 @@ class App:
         except Exception as e:
             self.error(e)
 
-    def toggle_node(self):
-        if self.guard() and self.focus_node:
-            self.checkpoint()
-            n=self.ws.data["nodes"][self.focus_node]
-            n["collapsed"]=not n["collapsed"]
-            self.render()
-            self.changed()
+    def toggle_node(self,i=None):
+        i=i or self.focus_node
+        if self.guard() and i in self.ws.data["nodes"]:
+            self.set_collapsed(i,not self.ws.data["nodes"][i]["collapsed"])
 
     def indent(self):
         if not self.guard() or not self.focus_node:

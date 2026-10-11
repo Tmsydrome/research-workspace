@@ -1,29 +1,30 @@
-"""Research Workspace visual themes, version 1.0.0."""
+"""Research Workspace visual themes, version 1.0.1."""
 from tkinter import ttk
 
 THEMES = {
     "ocean":{"name":"深蓝","ui":"#111d2e","panel":"#1b2c43","canvas":"#13243a","outline":"#13243a",
              "border":"#2d405a","text":"#edf4fc","muted":"#95a9c1","accent":"#078077",
-             "branch":"#439dd3","node":"#20649a","grid":"#1c304a","selection":"#125d66",
+             "branch":"#439dd3","node":"#20649a","grid":"#1c304a","selection":"#125d66","outline_selection":"#294157",
              "rainbow":["#21b9aa","#439dd3","#439dd3","#439dd3","#ca9861"]},
     "forest":{"name":"青绿","ui":"#112825","panel":"#193c35","canvas":"#102f29","outline":"#102f29",
               "border":"#31564b","text":"#ecf7f1","muted":"#9db9af","accent":"#16b79e",
-              "branch":"#5ebba4","node":"#21765e","grid":"#193e35","selection":"#21584b",
+              "branch":"#5ebba4","node":"#21765e","grid":"#193e35","selection":"#21584b","outline_selection":"#29483f",
               "rainbow":["#16b79e","#6ba9d0","#c5af73","#ae91c3","#d18e8b"]},
     "paper":{"name":"浅灰","ui":"#edf1f5","panel":"#ffffff","canvas":"#f7f9fc","outline":"#f7f9fc",
              "border":"#cfd9e4","text":"#24354a","muted":"#65788f","accent":"#087f7a",
-             "branch":"#4b86b5","node":"#e0ecf7","grid":"#e8eef4","selection":"#d7eeec",
+             "branch":"#4b86b5","node":"#e0ecf7","grid":"#e8eef4","selection":"#d7eeec","outline_selection":"#e4eaf0",
              "rainbow":["#087f7a","#4b86b5","#8b75b6","#b68950","#66956b"]},
     "warm":{"name":"暖棕","ui":"#2a211d","panel":"#3c2e26","canvas":"#31251f","outline":"#31251f",
             "border":"#615044","text":"#f5eee5","muted":"#c0ac99","accent":"#cd9b68",
-            "branch":"#c79e78","node":"#775439","grid":"#3c2e26","selection":"#624530",
+            "branch":"#c79e78","node":"#775439","grid":"#3c2e26","selection":"#624530","outline_selection":"#504239",
             "rainbow":["#c79e78","#99ada2","#b49dc4","#ce9390","#b2ba86"]},
     "plum":{"name":"暮紫","ui":"#211c2e","panel":"#302640","canvas":"#281d3b","outline":"#281d3b",
              "border":"#514461","text":"#f1edf6","muted":"#b3a7c4","accent":"#c778b3",
-             "branch":"#cd6b9f","node":"#653d67","grid":"#342747","selection":"#57405e",
+             "branch":"#cd6b9f","node":"#653d67","grid":"#342747","selection":"#57405e","outline_selection":"#46384f",
              "rainbow":["#cd6b9f","#6cbcc1","#d9ac62","#9395e3","#8dbd8b"]},
 }
 DEFAULT_STYLE={"background":"#e8efff","foreground":"#172947"}
+SELECTION_EDGE="#c4b478"
 NODE_PRESETS={"青绿":("#0d706e","#ffffff"),"红色":("#df2a33","#ffffff"),
               "石墨":("#555861","#ffffff"),"金色":("#f2c76c","#2c2310")}
 
@@ -65,7 +66,10 @@ def configure_style(style, theme):
     style.configure("Treeview.Heading",background=p["ui"],foreground=p["muted"],
                     bordercolor=p["border"],relief="flat")
     style.configure("Outline.Treeview",background=p["outline"],fieldbackground=p["outline"],
-                    rowheight=42,font=("Microsoft YaHei UI",11))
+                    rowheight=48,font=("Microsoft YaHei UI",11),
+                    indicatorsize=21,indicatormargins=(6,6,6,6))
+    style.map("Outline.Treeview",background=[("selected",p["outline_selection"])],
+              foreground=[("selected",p["text"])])
     style.configure("Outline.TFrame",background=p["outline"])
     style.configure("OutlineTitle.TLabel",background=p["outline"],foreground=p["text"],
                     font=("Microsoft YaHei UI",20,"bold"))

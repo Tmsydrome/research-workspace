@@ -1,4 +1,4 @@
-"""Project folder, deletion and explicit-save checks, version 1.0.0."""
+"""Project folder, deletion and explicit-save checks, version 1.0.1."""
 import json,os,tempfile,tkinter as tk
 from pathlib import Path
 from types import SimpleNamespace

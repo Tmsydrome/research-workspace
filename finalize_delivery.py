@@ -1,8 +1,8 @@
-"""Finalize public release artifacts, version 1.0.0."""
+"""Finalize public release artifacts, version 1.0.1."""
 import hashlib,json,os,zipfile
 from pathlib import Path
 
-VERSION="1.0.0"
+VERSION="1.0.1"
 BASE=Path(__file__).resolve().parent
 PORTABLE=BASE/"dist"/("v"+VERSION+"_Research_Workspace_Portable")
 SOURCE_FILES=["app.py","workspace.py","themes.py","html_editor.py","native_drop.py",

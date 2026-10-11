@@ -1,4 +1,4 @@
-"""Build the Windows portable distribution, version 1.0.0."""
+"""Build the Windows portable distribution, version 1.0.1."""
 import hashlib
 import json
 import os
@@ -8,7 +8,7 @@ import sys
 import zipfile
 from pathlib import Path
 
-VERSION = "1.0.0"
+VERSION = "1.0.1"
 BASE = Path(__file__).resolve().parent
 PYTHON = Path(sys.base_prefix)
 OUTPUT = BASE / "dist" / ("v" + VERSION + "_Research_Workspace_Portable")
