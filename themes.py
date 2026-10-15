@@ -1,4 +1,4 @@
-"""Research Workspace visual themes, version 1.0.1."""
+"""Research Workspace visual themes, version 1.0.4."""
 from tkinter import ttk
 
 THEMES = {

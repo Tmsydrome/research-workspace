@@ -1,4 +1,4 @@
-"""Windows Explorer OLE file drop receiver, version 1.0.1."""
+"""Windows Explorer OLE file drop receiver, version 1.0.4."""
 import ctypes
 import uuid
 import os,json

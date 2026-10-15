@@ -1,4 +1,4 @@
-"""Local HTML attachment editor bridge, version 1.0.1."""
+"""Local HTML attachment editor bridge, version 1.0.4."""
 from __future__ import annotations
 import hashlib
 import json
@@ -16,9 +16,18 @@ import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import quote, unquote, urlsplit
-from workspace import contained
+from workspace import contained,clean_name
 
-EDITOR=Path(__file__).parent/"resources"/"v1.0.0_HTML修订批注工具.html"
+EDITOR=Path(__file__).parent/"resources"/"v0.4.7_HTML修订批注工具.html"
+ADAPTER=EDITOR.parent/"workspace_editor.js"
+
+def editor_page():
+    text=EDITOR.read_text(encoding="utf-8")
+    text=re.sub(r'<a class="creator-profile"[^>]*>(.*?)</a>',
+                r'<div class="creator-profile" aria-label="Tmsydrome">\1</div>',text,flags=re.S)
+    text=re.sub(r'\.creator-profile:hover\{[^}]*\}',"",text)
+    before,after=text.rsplit("</body>",1)
+    return before+"<script>\n"+ADAPTER.read_text(encoding="utf-8")+"</script>\n</body>"+after
 
 def digest(content):
     return hashlib.sha256(content).hexdigest()
@@ -35,6 +44,42 @@ def decode_html(content):
         except (UnicodeError,LookupError):
             pass
     raise ValueError("HTML 文字编码无法识别，请先另存为 UTF-8")
+
+def desktop_directory():
+    if os.name!="nt":return Path.home()/"Desktop"
+    import ctypes
+    import uuid
+    folder=(ctypes.c_byte*16).from_buffer_copy(uuid.UUID("B4BFCC3A-DB2C-424C-B029-7FE99A87C641").bytes_le)
+    path=ctypes.c_wchar_p()
+    shell=ctypes.windll.shell32
+    shell.SHGetKnownFolderPath.argtypes=[ctypes.c_void_p,ctypes.c_uint,ctypes.c_void_p,ctypes.POINTER(ctypes.c_wchar_p)]
+    result=shell.SHGetKnownFolderPath(ctypes.byref(folder),0,None,ctypes.byref(path))
+    if result:raise OSError("无法读取系统桌面目录")
+    try:return Path(path.value)
+    finally:
+        ctypes.windll.ole32.CoTaskMemFree.argtypes=[ctypes.c_void_p]
+        ctypes.windll.ole32.CoTaskMemFree(path)
+
+def export_to_desktop(text,name):
+    if not isinstance(name,str) or not name.lower().endswith((".html",".htm")):
+        raise ValueError("导出文件应为 HTML 格式")
+    directory=desktop_directory().resolve()
+    directory.mkdir(parents=True,exist_ok=True)
+    stem=clean_name(name.rsplit(".",1)[0])
+    number=1
+    while True:
+        target=directory/(stem+("" if number==1 else "_"+str(number))+".html")
+        try:stream=target.open("xb")
+        except FileExistsError:
+            number+=1
+            continue
+        try:
+            with stream:
+                stream.write(text.encode("utf-8"));stream.flush();os.fsync(stream.fileno())
+            return target
+        except BaseException:
+            target.unlink(missing_ok=True)
+            raise
 
 class HtmlEditor:
     def __init__(self):
@@ -76,7 +121,7 @@ class HtmlEditor:
                     with bridge.lock:
                         token,route,s=self.route()
                         if route=="editor":
-                            self.reply(200,EDITOR.read_bytes(),"text/html; charset=utf-8")
+                            self.reply(200,editor_page(),"text/html; charset=utf-8")
                         elif route=="document":
                             data=s["file"].read_bytes()
                             relative=s["file"].parent.relative_to(s["root"]).as_posix()
@@ -99,7 +144,7 @@ class HtmlEditor:
                 try:
                     with bridge.lock:
                         token,route,s=self.route()
-                        if route not in {"save","state"} or self.headers.get("Origin")!=bridge.origin:
+                        if route not in {"save","state","export"} or self.headers.get("Origin")!=bridge.origin:
                             raise PermissionError("保存请求来源无效")
                         size=int(self.headers.get("Content-Length","0"))
                         if not 0<size<=50*1024*1024:
@@ -112,6 +157,10 @@ class HtmlEditor:
                         text=body["text"]
                         if not isinstance(text,str) or not text.strip():
                             raise ValueError("HTML 保存内容为空")
+                        if route=="export":
+                            target=export_to_desktop(text,body["name"])
+                            self.reply(200,{"ok":True,"name":target.name,"path":str(target)})
+                            return
                         current=s["file"].read_bytes()
                         if body.get("etag")!=digest(current):
                             self.reply(409,{"error":"归档副本已被另一窗口修改，请导出当前内容或重新加载归档。"})

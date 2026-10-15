@@ -1,4 +1,4 @@
-"""Research Workspace storage and export, version 1.0.1."""
+"""Research Workspace storage and export, version 1.0.4."""
 from __future__ import annotations
 import copy
 import hashlib
@@ -11,7 +11,7 @@ import uuid
 import zipfile
 from pathlib import Path, PurePosixPath
 
-VERSION = "1.0.1"
+VERSION = "1.0.4"
 SCHEMA = 1
 ALLOWED_OPEN = {".html", ".htm", ".doc", ".docx", ".xls", ".xlsx", ".pdf",
                 ".png", ".jpg", ".jpeg", ".gif", ".txt", ".md", ".ppt", ".pptx", ".csv"}

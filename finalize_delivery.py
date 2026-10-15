@@ -1,21 +1,22 @@
-"""Finalize public release artifacts, version 1.0.1."""
+"""Finalize public release artifacts, version 1.0.4."""
 import hashlib,json,os,zipfile
 from pathlib import Path
 
-VERSION="1.0.1"
+VERSION="1.0.4"
 BASE=Path(__file__).resolve().parent
 PORTABLE=BASE/"dist"/("v"+VERSION+"_Research_Workspace_Portable")
 SOURCE_FILES=["app.py","workspace.py","themes.py","html_editor.py","native_drop.py",
-    "test_node_flow.py","test_project_flow.py","test_package_flow.py","test_workspace.py",
+    "test_node_flow.py","test_project_flow.py","test_package_flow.py","test_workspace.py","test_html_editor_flow.py",
     "build_portable.py","finalize_delivery.py","launcher.cs",".gitignore","VERSION",
     "README.md","CHANGELOG.md","THIRD_PARTY_NOTICES.md","LICENSE",
-    "resources/v1.0.0_HTML修订批注工具.html","resources/github_avatar.png","resources/github_profile.json"]
+    "resources/v0.4.7_HTML修订批注工具.html","resources/workspace_editor.js","resources/github_avatar.png","resources/github_profile.json",
+    "resources/app_icon.ico","resources/app_icon.png"]
 PORTABLE_ROOT_FILES={"app.py","workspace.py","themes.py","html_editor.py","native_drop.py",
-    "test_node_flow.py","test_project_flow.py","test_package_flow.py","test_workspace.py",
+    "test_node_flow.py","test_project_flow.py","test_package_flow.py","test_workspace.py","test_html_editor_flow.py",
     "README.md","CHANGELOG.md","THIRD_PARTY_NOTICES.md","LICENSE","VERSION",
     "v"+VERSION+"_Research_Workspace.exe"}
 RESOURCES={p for p in SOURCE_FILES if p.startswith("resources/")}
-REPORTS=["test_results.json","node_flow_results.json","project_flow_results.json","package_flow_results.json","portable_results.json"]
+REPORTS=["test_results.json","node_flow_results.json","project_flow_results.json","package_flow_results.json","html_editor_flow_results.json","portable_results.json"]
 
 def atomic_zip(output,files):
     temporary=output.with_name(output.name+".tmp")
@@ -35,7 +36,7 @@ def main():
     for name in SOURCE_FILES:
         assert (BASE/name).is_file(),name
     for name in ["app.py","workspace.py","themes.py","html_editor.py","native_drop.py",
-                 "test_node_flow.py","test_project_flow.py","test_package_flow.py","test_workspace.py",
+                 "test_node_flow.py","test_project_flow.py","test_package_flow.py","test_workspace.py","test_html_editor_flow.py",
                  "VERSION","README.md","CHANGELOG.md","THIRD_PARTY_NOTICES.md","LICENSE"]+sorted(RESOURCES):
         assert (BASE/name).read_bytes()==(PORTABLE/name).read_bytes(),name
     files=[]

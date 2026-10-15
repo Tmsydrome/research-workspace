@@ -1,4 +1,4 @@
-"""Research Workspace desktop application, version 1.0.1."""
+"""Research Workspace desktop application, version 1.0.4."""
 from __future__ import annotations
 import copy
 import ctypes
@@ -7,7 +7,6 @@ import os
 import queue
 import threading
 import time
-import webbrowser
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, simpledialog, colorchooser
 from pathlib import Path
@@ -36,6 +35,13 @@ class App:
         except (OSError,ValueError):
             pass
         root.title("Research Workspace v" + VERSION)
+        icon_path=Path(__file__).resolve().parent/"resources"/"app_icon.ico"
+        if os.name=="nt":
+            root.iconbitmap(default=str(icon_path))
+            root.iconbitmap(str(icon_path))
+        else:
+            self.app_icon=tk.PhotoImage(file=str(icon_path.with_suffix(".png")))
+            root.iconphoto(True,self.app_icon)
         root.geometry("1380x860")
         root.minsize(1020,650)
         self.theme=THEMES.get(self.config.get("theme","ocean"),THEMES["ocean"])
@@ -80,11 +86,10 @@ class App:
         self.search_group=ttk.Frame(bar)
         self.search_group.pack(side="left")
         profile=json.loads((Path(__file__).parent/"resources/github_profile.json").read_text(encoding="utf-8"))
-        self.github_url=profile["url"]
         self.github_avatar=tk.PhotoImage(file=str(Path(__file__).parent/"resources/github_avatar.png"))
-        self.github_button=ttk.Button(self.search_group,text=profile["displayName"],image=self.github_avatar,
-                                      compound="left",cursor="hand2",command=self.open_github_profile)
-        self.github_button.pack(side="left",padx=(0,6))
+        self.github_label=ttk.Label(self.search_group,text=profile["displayName"],image=self.github_avatar,
+                                    compound="left",padding=(8,4))
+        self.github_label.pack(side="left",padx=(0,6))
         self.search_var=tk.StringVar()
         self.search_entry=ttk.Entry(self.search_group,textvariable=self.search_var,width=16)
         self.search_entry.pack(side="left",padx=8)
@@ -252,9 +257,6 @@ class App:
         self.inspector_tabs.select(self.attachment_panel)
         self.enable_editor(False)
 
-
-    def open_github_profile(self):
-        webbrowser.open_new_tab(self.github_url)
 
     def wrap_toolbar(self,frame):
         widgets=frame.winfo_children()

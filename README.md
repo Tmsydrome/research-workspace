@@ -1,12 +1,12 @@
-# Research Workspace v1.0.1
+# Research Workspace v1.0.4
 
 Windows 10/11 x64 本地科研资料工作区：用思维导图组织项目、章节和附件，在本地保存与迁移资料。
 
 ## 安装与运行
 
-从 GitHub Releases 下载 v1.0.1_Research_Workspace_Portable.zip，完整解压后运行 v1.0.1_Research_Workspace.exe。便携版包含 Python 3.12 与 Tk/Tcl 运行环境。
+从 GitHub Releases 下载 v1.0.4_Research_Workspace_Portable.zip，完整解压后运行 v1.0.4_Research_Workspace.exe。便携版包含 Python 3.12 与 Tk/Tcl 运行环境。
 
-HTML 编辑器随软件打包，在本机浏览器应用窗口中显示；其余附件使用 Windows 默认应用打开。软件数据写入用户选择的项目目录。
+HTML 编辑器随软件打包，在本机浏览器应用窗口中显示；其余附件使用 Windows 默认应用打开。内置编辑器的导出文件直接保存到系统桌面，同名文件自动添加编号；头像和作者名称用于展示。软件数据写入用户选择的项目目录。
 
 ## 项目与导图
 
@@ -20,7 +20,7 @@ HTML 编辑器随软件打包，在本机浏览器应用窗口中显示；其余
 
 将文件从资源管理器拖到节点上，软件复制归档并为每个文件创建一个以文件名命名的子节点。原文件保留。
 
-Word、Excel、PPT、HTML、Markdown 和图片显示不同的类型图标。单击文件图标或双击右侧附件列表打开附件。HTML/HTM 默认进入内置的 HTML 修订批注工具 v1.0.0，自动加载归档副本，支持修订、批注、高亮、画笔和保存归档；其他附件直接由默认应用打开。
+Word、Excel、PPT、HTML、Markdown 和图片显示不同的类型图标。单击文件图标或双击右侧附件列表打开附件。HTML/HTM 默认进入内置的 HTML 修订批注工具 v0.4.7，自动加载归档副本，支持修订、批注、高亮、画笔和保存归档；其他附件直接由默认应用打开。
 
 导入 HTML 资源文件夹时可指定入口页，归档包含目录内的资源。单独导入 HTML 时，应将其依赖的本地图片、CSS 和脚本一起归档。
 
@@ -63,6 +63,9 @@ Word、Excel、PPT、HTML、Markdown 和图片显示不同的类型图标。单�
     python test_node_flow.py
     python test_project_flow.py
     python test_package_flow.py
+    python test_html_editor_flow.py
+
+内置编辑器导出检查使用 Node.js 执行页面处理程序，并将文件写入临时桌面目录。
 
 自动检查使用临时夹具和隐藏窗口。文件复制、项目包还原、层级与持久化、默认打开分派、内置 HTML 入口及 OLE 接口均有检查；Office 类型的测试文件用于核对字节复制与类型识别。
 

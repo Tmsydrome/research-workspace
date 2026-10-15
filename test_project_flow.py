@@ -1,4 +1,4 @@
-"""Project folder, deletion and explicit-save checks, version 1.0.1."""
+"""Project folder, deletion and explicit-save checks, version 1.0.4."""
 import json,os,tempfile,tkinter as tk
 from pathlib import Path
 from types import SimpleNamespace
@@ -21,13 +21,11 @@ def main():
         root,app=hidden_app(base,"config1")
         path=base/"课题项目"
         assert app.github_avatar.width()==32 and app.github_avatar.height()==32
-        assert app.github_button["text"]=="Tmsydrome" and app.github_button["image"]
+        assert app.github_label["text"]=="Tmsydrome" and app.github_label["image"]
         widgets=app.search_group.winfo_children()
-        assert widgets.index(app.github_button)+1==widgets.index(app.search_entry)
-        with patch("app.webbrowser.open_new_tab") as browser:
-            app.github_button.invoke()
-            browser.assert_called_once_with("https://github.com/Tmsydrome")
-        passed("GitHub 头像与名称位于搜索框左侧，按钮打开本人主页")
+        assert widgets.index(app.github_label)+1==widgets.index(app.search_entry)
+        assert app.github_label.winfo_class()=="TLabel" and not app.github_label.bind("<Button-1>")
+        passed("GitHub 头像与名称位于搜索框左侧，作为静态标签展示")
         assert app.ws is None
         with patch("app.filedialog.askdirectory",return_value=str(path)) as choose, \
              patch("app.simpledialog.askstring",return_value="博士课题"):

@@ -1,4 +1,4 @@
-"""Build the Windows portable distribution, version 1.0.1."""
+"""Build the Windows portable distribution, version 1.0.4."""
 import hashlib
 import json
 import os
@@ -8,7 +8,7 @@ import sys
 import zipfile
 from pathlib import Path
 
-VERSION = "1.0.1"
+VERSION = "1.0.4"
 BASE = Path(__file__).resolve().parent
 PYTHON = Path(sys.base_prefix)
 OUTPUT = BASE / "dist" / ("v" + VERSION + "_Research_Workspace_Portable")
@@ -42,11 +42,11 @@ def build():
         ignore=shutil.ignore_patterns("__pycache__"))
     (runtime/"python312._pth").write_text("python312.zip\nDLLs\nLib\n..\n",encoding="ascii")
     for name in ["app.py","workspace.py","themes.py","html_editor.py","native_drop.py",
-                 "test_node_flow.py","test_project_flow.py","test_package_flow.py","test_workspace.py","README.md","CHANGELOG.md","THIRD_PARTY_NOTICES.md","LICENSE","VERSION"]:
+                 "test_node_flow.py","test_project_flow.py","test_package_flow.py","test_workspace.py","test_html_editor_flow.py","README.md","CHANGELOG.md","THIRD_PARTY_NOTICES.md","LICENSE","VERSION"]:
         if (BASE/name).exists():
             shutil.copy2(BASE/name,OUTPUT/name)
     (OUTPUT/"resources").mkdir()
-    for name in ["v1.0.0_HTML修订批注工具.html","github_avatar.png","github_profile.json"]:
+    for name in ["v0.4.7_HTML修订批注工具.html","workspace_editor.js","github_avatar.png","github_profile.json","app_icon.ico","app_icon.png"]:
         shutil.copy2(BASE/"resources"/name,OUTPUT/"resources"/name)
     for license_path in [PYTHON/"LICENSE.txt",PYTHON/"LICENSE"]:
         if license_path.exists():
@@ -55,7 +55,8 @@ def build():
     launcher=BASE/"launcher.cs"
     executable=OUTPUT/("v"+VERSION+"_Research_Workspace.exe")
     subprocess.run([str(COMPILER),"/nologo","/target:winexe","/platform:x64",
-                    "/out:"+str(executable),"/reference:System.Windows.Forms.dll",str(launcher)],
+                    "/out:"+str(executable),"/win32icon:"+str(BASE/"resources"/"app_icon.ico"),
+                    "/reference:System.Windows.Forms.dll",str(launcher)],
                    check=True)
     subprocess.run([str(runtime/"python.exe"),"-I","-c",
         "import tkinter, json, zipfile; import workspace; print('Runtime', workspace.VERSION, tkinter.TkVersion)"],

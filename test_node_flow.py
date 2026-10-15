@@ -1,4 +1,4 @@
-"""Hidden-window regression checks for Research Workspace 1.0.1."""
+"""Hidden-window regression checks for Research Workspace 1.0.4."""
 import ctypes,json,os,struct,tempfile,time,tkinter as tk
 from pathlib import Path
 from unittest.mock import patch

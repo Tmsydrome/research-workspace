@@ -1,4 +1,4 @@
-"""Integration acceptance checks, version 1.0.1; test revision 1. Uses temporary fixtures only."""
+"""Integration acceptance checks, version 1.0.4; test revision 1. Uses temporary fixtures only."""
 import copy
 import json
 import os
