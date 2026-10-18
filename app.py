@@ -1,4 +1,4 @@
-"""Research Workspace desktop application, version 1.0.4."""
+"""Research Workspace desktop application, version 1.0.5."""
 from __future__ import annotations
 import copy
 import ctypes
@@ -238,6 +238,7 @@ class App:
         self.attach_tree.pack(fill="both",expand=True)
         self.attach_tree.bind("<Double-Button-1>",lambda e:self.open_attachment())
         self.attach_tree.bind("<Button-3>",self.attachment_context)
+        self.attach_tree.bind("<Control-c>",self.copy_selected_attachments)
         self.attach_tree.bind("<<TreeviewSelect>>",self.attachment_details)
         self.export_button=ttk.Button(self.attachment_panel,text="导出附件…",
                                      command=self.export_selected_attachments,style="Accent.TButton")
@@ -1929,6 +1930,7 @@ class App:
         menu=self.menu()
         target=i or next(iter(self.attach_tree.selection()),None)
         entries=[("打开附件",lambda:self.open_attachment(target)),
+            ("复制附件",self.copy_selected_attachments),
             ("打开归档目录",lambda:self.open_attachment(target,folder=True)),
             ("刷新大小与修改时间",lambda:self.load_editor(self.focus_node)),
             ("移除节点关联…",self.unlink_attachments)]
@@ -1936,8 +1938,26 @@ class App:
             record=self.ws.data["attachments"][target]
             if record["type"] in {".html",".htm"} or Path(record.get("entry") or "").suffix.lower() in {".html",".htm"}:
                 entries.insert(1,("使用内置 HTML 修订工具",lambda:self.open_attachment(target,system=False)))
-        for label,cmd in entries:menu.add_command(label=label,command=cmd)
+        for label,cmd in entries:
+            options={"label":label,"command":cmd}
+            if label=="复制附件":
+                options.update(accelerator="Ctrl+C",state="normal" if self.attach_tree.selection() else "disabled")
+            menu.add_command(**options)
         menu.tk_popup(e.x_root,e.y_root)
+
+    def copy_selected_attachments(self,e=None):
+        if not self.guard():return "break"
+        ids=list(self.attach_tree.selection())
+        if not ids:
+            self.status.set("请在右侧附件列表中选择要复制的附件")
+            return "break"
+        try:
+            paths=[self.ws.attachment_path(i) for i in ids]
+            from native_drop import copy_files_to_clipboard
+            count=copy_files_to_clipboard(paths,self.root.winfo_id())
+            self.status.set(f"已复制 {count} 个附件 · 可直接粘贴到目标位置")
+        except Exception as error:self.error(error)
+        return "break"
 
     def open_attachment(self,i=None,folder=False,system=False):
         if not self.guard():
@@ -2267,7 +2287,7 @@ class App:
             "从桌面或文件夹拖文件到节点：松开后为每个文件创建一个附件子节点。\n"
             "文件节点显示文件名；HTML 用内置修订工具打开，其他附件用系统默认应用打开。\n"
             "Ctrl+点击多选，Shift+点击范围；左键按住空白处自动使用手掌平移画布。\n中键同样可平移，Ctrl+滚轮缩放。\n"
-            "选择父节点自动选择全部后代和附件；右侧附件支持多选导出。\n"
+            "选择父节点自动选择全部后代和附件；右侧附件支持多选、右键复制或 Ctrl+C，以及导出。\n"
             "左侧 Ctrl/Shift 多选后右键导出项目包；拖入 .rwp 文件还原并打开。",
             parent=self.root)
 

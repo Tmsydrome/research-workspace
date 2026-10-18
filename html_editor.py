@@ -1,4 +1,4 @@
-"""Local HTML attachment editor bridge, version 1.0.4."""
+"""Local HTML attachment editor bridge, version 1.0.5."""
 from __future__ import annotations
 import hashlib
 import json

@@ -1,4 +1,4 @@
-/* Workspace editor integration v1.0.4: local session, explicit save and conflict detection. */
+/* Workspace editor integration v1.0.5: local session, explicit save and conflict detection. */
 const archiveSession=/\/editor$/.test(location.pathname)?location.pathname.replace(/editor$/,''):null;
 let archiveEtag='',archiveBaseline='',archiveDirty=false,archiveSaving=false;
 let archiveStateQueue=Promise.resolve();

@@ -1,13 +1,62 @@
-"""Windows Explorer OLE file drop receiver, version 1.0.4."""
+"""Windows file drop and clipboard transfer, version 1.0.5."""
 import ctypes
 import uuid
 import os,json
+import struct,time
+from pathlib import Path
 from ctypes import wintypes
 
 HRESULT=ctypes.c_long
 DWORD=wintypes.DWORD
 PVOID=ctypes.c_void_p
 CALL=ctypes.WINFUNCTYPE
+
+def copy_files_to_clipboard(paths,owner):
+    if os.name!="nt":raise OSError("文件复制需要 Windows")
+    files=list(dict.fromkeys(str(Path(p).resolve(strict=True)) for p in paths))
+    if not files:raise ValueError("请选择要复制的附件")
+    if not owner:raise ValueError("复制需要有效的窗口")
+    user=ctypes.WinDLL("user32",use_last_error=True)
+    kernel=ctypes.WinDLL("kernel32",use_last_error=True)
+    user.OpenClipboard.argtypes=[wintypes.HWND]
+    user.EmptyClipboard.argtypes=[]
+    user.CloseClipboard.argtypes=[]
+    user.SetClipboardData.argtypes=[wintypes.UINT,PVOID]
+    user.SetClipboardData.restype=PVOID
+    user.RegisterClipboardFormatW.argtypes=[wintypes.LPCWSTR]
+    user.RegisterClipboardFormatW.restype=wintypes.UINT
+    kernel.GlobalAlloc.argtypes=[wintypes.UINT,ctypes.c_size_t]
+    kernel.GlobalAlloc.restype=PVOID
+    kernel.GlobalLock.argtypes=[PVOID];kernel.GlobalLock.restype=PVOID
+    kernel.GlobalUnlock.argtypes=[PVOID]
+    kernel.GlobalFree.argtypes=[PVOID];kernel.GlobalFree.restype=PVOID
+    effect=user.RegisterClipboardFormatW("Preferred DropEffect")
+    if not effect:raise OSError("无法注册文件复制格式")
+    payload=struct.pack("<IiiII",20,0,0,0,1)+("\0".join(files)+"\0\0").encode("utf-16-le")
+    owned=[];buffers=[];opened=False
+    try:
+        for kind,data in ((15,payload),(effect,struct.pack("<I",1))):
+            handle=kernel.GlobalAlloc(0x42,len(data))
+            if not handle:raise OSError("无法分配文件剪贴板内存")
+            owned.append(handle)
+            pointer=kernel.GlobalLock(handle)
+            if not pointer:raise OSError("无法写入文件剪贴板内存")
+            try:ctypes.memmove(pointer,data,len(data))
+            finally:kernel.GlobalUnlock(handle)
+            buffers.append((kind,handle))
+        for attempt in range(5):
+            opened=bool(user.OpenClipboard(owner))
+            if opened:break
+            if attempt<4:time.sleep(.03)
+        if not opened:raise OSError("剪贴板正忙，请稍后重试")
+        if not user.EmptyClipboard():raise OSError("无法准备文件剪贴板")
+        for kind,handle in buffers:
+            if not user.SetClipboardData(kind,handle):raise OSError("附件写入剪贴板失败")
+            owned.remove(handle)  # Windows owns each published memory block.
+        return len(files)
+    finally:
+        if opened:user.CloseClipboard()
+        for handle in owned:kernel.GlobalFree(handle)
 
 class POINTL(ctypes.Structure):
     _fields_=[("x",wintypes.LONG),("y",wintypes.LONG)]

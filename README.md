@@ -1,10 +1,10 @@
-# Research Workspace v1.0.4
+# Research Workspace v1.0.5
 
 Windows 10/11 x64 本地科研资料工作区：用思维导图组织项目、章节和附件，在本地保存与迁移资料。
 
 ## 安装与运行
 
-从 GitHub Releases 下载 v1.0.4_Research_Workspace_Portable.zip，完整解压后运行 v1.0.4_Research_Workspace.exe。便携版包含 Python 3.12 与 Tk/Tcl 运行环境。
+从 GitHub Releases 下载 v1.0.5_Research_Workspace_Portable.zip，完整解压后运行 v1.0.5_Research_Workspace.exe。便携版包含 Python 3.12 与 Tk/Tcl 运行环境。
 
 HTML 编辑器随软件打包，在本机浏览器应用窗口中显示；其余附件使用 Windows 默认应用打开。内置编辑器的导出文件直接保存到系统桌面，同名文件自动添加编号；头像和作者名称用于展示。软件数据写入用户选择的项目目录。
 
@@ -24,7 +24,7 @@ Word、Excel、PPT、HTML、Markdown 和图片显示不同的类型图标。单�
 
 导入 HTML 资源文件夹时可指定入口页，归档包含目录内的资源。单独导入 HTML 时，应将其依赖的本地图片、CSS 和脚本一起归档。
 
-右侧附件列表支持 Ctrl/Shift 多选和导出，导出保留原文件名和格式，同名的不同文件自动添加编号后缀。
+右侧附件列表支持 Ctrl/Shift 多选。选中附件后右键“复制附件”或按 Ctrl+C，再到目标文件夹或支持接收文件的应用中粘贴；目录附件按完整目录复制。附件列表同时支持导出，导出保留原文件名和格式，同名的不同文件自动添加编号后缀。
 
 ## 单文件项目包
 
@@ -64,6 +64,7 @@ Word、Excel、PPT、HTML、Markdown 和图片显示不同的类型图标。单�
     python test_project_flow.py
     python test_package_flow.py
     python test_html_editor_flow.py
+    python test_clipboard_flow.py
 
 内置编辑器导出检查使用 Node.js 执行页面处理程序，并将文件写入临时桌面目录。
 
