@@ -1,4 +1,4 @@
-"""Build the Windows portable distribution, version 1.0.5."""
+"""Build the Windows portable distribution, version 1.0.10."""
 import hashlib
 import json
 import os
@@ -8,7 +8,7 @@ import sys
 import zipfile
 from pathlib import Path
 
-VERSION = "1.0.5"
+VERSION = "1.0.10"
 BASE = Path(__file__).resolve().parent
 PYTHON = Path(sys.base_prefix)
 OUTPUT = BASE / "dist" / ("v" + VERSION + "_Research_Workspace_Portable")
@@ -42,7 +42,7 @@ def build():
         ignore=shutil.ignore_patterns("__pycache__"))
     (runtime/"python312._pth").write_text("python312.zip\nDLLs\nLib\n..\n",encoding="ascii")
     for name in ["app.py","workspace.py","themes.py","html_editor.py","native_drop.py",
-                 "test_node_flow.py","test_project_flow.py","test_package_flow.py","test_workspace.py","test_html_editor_flow.py","test_clipboard_flow.py","README.md","CHANGELOG.md","THIRD_PARTY_NOTICES.md","LICENSE","VERSION"]:
+                 "test_node_flow.py","test_project_flow.py","test_package_flow.py","test_workspace.py","test_html_editor_flow.py","test_clipboard_flow.py","test_paste_flow.py","test_attachment_layout.py","README.md","CHANGELOG.md","THIRD_PARTY_NOTICES.md","LICENSE","VERSION"]:
         if (BASE/name).exists():
             shutil.copy2(BASE/name,OUTPUT/name)
     (OUTPUT/"resources").mkdir()

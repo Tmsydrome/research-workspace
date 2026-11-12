@@ -1,4 +1,4 @@
-/* Workspace editor integration v1.0.5: local session, explicit save and conflict detection. */
+/* Workspace editor integration v1.0.10: local session, explicit save and conflict detection. */
 const archiveSession=/\/editor$/.test(location.pathname)?location.pathname.replace(/editor$/,''):null;
 let archiveEtag='',archiveBaseline='',archiveDirty=false,archiveSaving=false;
 let archiveStateQueue=Promise.resolve();
@@ -44,6 +44,16 @@ async function saveArchive(){
   }catch(error){status(error.message);alert(error.message);}
   finally{archiveSaving=false;button.disabled=false;}
 }
+const documentExport=exportDoc;
+exportDoc=clean=>{
+  const parsed=new DOMParser().parseFromString(documentExport(clean),'text/html');
+  parsed.querySelector('[data-workspace-base]')?.remove();
+  if(!commentsData(doc()).length){
+    parsed.querySelector('#review-comments-sidebar')?.remove();
+    parsed.querySelectorAll('style').forEach(s=>{if(s.textContent.includes('#review-comments-sidebar'))s.remove();});
+  }
+  return '<!doctype html>\n'+parsed.documentElement.outerHTML;
+};
 async function exportSelected(){
   const base=fileName.replace(/\.html?$/i,''),clean=$('#exportType').value==='clean',button=$('#export');
   button.disabled=true;
@@ -75,6 +85,9 @@ if(archiveSession){
     const loaded=frame.onload;
     frame.onload=event=>{
       loaded.call(frame,event);
+      // Preserve document backgrounds and text contrast, including tables and figures.
+      const toolStyle=doc().querySelector('#review-tool-style');
+      if(toolStyle)toolStyle.textContent=toolStyle.textContent.replace('background:var(--editor-paper,#fff)!important;color:var(--editor-ink,#222)!important;','');
       commentNo=Math.max(0,...[...doc().querySelectorAll('[data-comment-id]')].map(n=>Number(n.dataset.commentId.replace(/^C/,''))||0));
       window.dispatchEvent(new Event('review-ready'));
     };

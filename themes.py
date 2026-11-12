@@ -1,4 +1,4 @@
-"""Research Workspace visual themes, version 1.0.5."""
+"""Research Workspace visual themes, version 1.0.10."""
 from tkinter import ttk
 
 THEMES = {
@@ -26,7 +26,8 @@ THEMES = {
 DEFAULT_STYLE={"background":"#e8efff","foreground":"#172947"}
 SELECTION_EDGE="#c4b478"
 NODE_PRESETS={"青绿":("#0d706e","#ffffff"),"红色":("#df2a33","#ffffff"),
-              "石墨":("#555861","#ffffff"),"金色":("#f2c76c","#2c2310")}
+              "石墨":("#555861","#ffffff"),"金色":("#f2c76c","#2c2310"),
+              "蓝色":("#326bb5","#ffffff"),"紫色":("#8056a8","#ffffff")}
 
 def configure_style(style, theme):
     p=theme
@@ -77,7 +78,9 @@ def configure_style(style, theme):
     style.configure("TNotebook",background=p["ui"],borderwidth=0,
                     bordercolor=p["ui"],lightcolor=p["ui"],darkcolor=p["ui"])
     style.configure("TNotebook.Tab",background=p["panel"],foreground=p["muted"],padding=(13,8),bordercolor=p["border"],lightcolor=p["panel"],darkcolor=p["panel"])
-    style.map("TNotebook.Tab",background=[("selected",p["border"])],foreground=[("selected",p["text"])])
+    style.map("TNotebook.Tab",background=[("selected",p["accent"])],foreground=[("selected","#ffffff")],
+              font=[("selected",("Microsoft YaHei UI",12,"bold")),("!selected",("Microsoft YaHei UI",10))],
+              padding=[("selected",(18,11)),("!selected",(13,8))])
     for name in ("Vertical.TScrollbar","Horizontal.TScrollbar"):
         style.configure(name,background=p["border"],troughcolor=p["ui"],arrowcolor=p["muted"],
                         bordercolor=p["ui"],lightcolor=p["border"],darkcolor=p["border"],borderwidth=0)

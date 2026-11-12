@@ -1,4 +1,4 @@
-"""Windows file drop and clipboard transfer, version 1.0.5."""
+"""Windows file drop and clipboard transfer, version 1.0.10."""
 import ctypes
 import uuid
 import os,json
@@ -10,6 +10,69 @@ HRESULT=ctypes.c_long
 DWORD=wintypes.DWORD
 PVOID=ctypes.c_void_p
 CALL=ctypes.WINFUNCTYPE
+
+def dib_to_bmp(data):
+    """Wrap a Windows clipboard DIB in a bitmap file header."""
+    if len(data)<40:raise ValueError("剪贴板图片头不完整")
+    size,width,height,planes,bits,compression=struct.unpack_from("<IiiHHI",data)
+    if size<40 or size>len(data) or width<=0 or not height or planes!=1:
+        raise ValueError("剪贴板图片格式无效")
+    colors=struct.unpack_from("<I",data,32)[0]
+    palette=colors or (1<<bits if bits<=8 else 0)
+    offset=size+palette*4+(12 if size==40 and compression==3 else 16 if size==40 and compression==6 else 0)
+    if offset>=len(data):raise ValueError("剪贴板图片数据不完整")
+    return struct.pack("<2sIHHI",b"BM",len(data)+14,0,0,offset+14)+data
+
+
+def read_clipboard(owner):
+    """Read files, image bytes, or Unicode text while preserving the clipboard."""
+    user=ctypes.WinDLL("user32",use_last_error=True)
+    kernel=ctypes.WinDLL("kernel32",use_last_error=True)
+    shell=ctypes.WinDLL("shell32",use_last_error=True)
+    user.OpenClipboard.argtypes=[wintypes.HWND]
+    user.GetClipboardData.argtypes=[wintypes.UINT];user.GetClipboardData.restype=PVOID
+    user.IsClipboardFormatAvailable.argtypes=[wintypes.UINT]
+    user.RegisterClipboardFormatW.argtypes=[wintypes.LPCWSTR];user.RegisterClipboardFormatW.restype=wintypes.UINT
+    kernel.GlobalLock.argtypes=[PVOID];kernel.GlobalLock.restype=PVOID
+    kernel.GlobalUnlock.argtypes=[PVOID]
+    kernel.GlobalSize.argtypes=[PVOID];kernel.GlobalSize.restype=ctypes.c_size_t
+    shell.DragQueryFileW.argtypes=[PVOID,wintypes.UINT,wintypes.LPWSTR,wintypes.UINT]
+    for attempt in range(5):
+        if user.OpenClipboard(owner):break
+        if attempt==4:raise OSError("剪贴板正忙，请稍后重试")
+        time.sleep(.03)
+    try:
+        if user.IsClipboardFormatAvailable(15):
+            handle=user.GetClipboardData(15)
+            if not handle:raise OSError("无法读取剪贴板文件")
+            paths=[]
+            for index in range(shell.DragQueryFileW(handle,0xffffffff,None,0)):
+                length=shell.DragQueryFileW(handle,index,None,0)
+                name=ctypes.create_unicode_buffer(length+1)
+                shell.DragQueryFileW(handle,index,name,length+1)
+                paths.append(name.value)
+            return {"files":list(dict.fromkeys(paths))}
+        png=user.RegisterClipboardFormatW("PNG")
+        # Office selections may publish both Unicode text and a rendered bitmap.
+        for kind,suffix in ((13,None),(png,".png"),(17,".bmp"),(8,".bmp")):
+            if not kind or not user.IsClipboardFormatAvailable(kind):continue
+            handle=user.GetClipboardData(kind)
+            if not handle:continue
+            pointer=kernel.GlobalLock(handle)
+            if not pointer:raise OSError("无法读取剪贴板内容")
+            try:
+                if suffix is None:
+                    text=ctypes.wstring_at(pointer)
+                    if text:return {"text":text}
+                else:data=ctypes.string_at(pointer,kernel.GlobalSize(handle))
+            finally:kernel.GlobalUnlock(handle)
+            if suffix is None:continue
+            if suffix==".bmp":data=dib_to_bmp(data)
+            elif not data.startswith(b"\x89PNG\r\n\x1a\n"):raise ValueError("剪贴板 PNG 图片格式无效")
+            return {"image":(suffix,data)}
+        return {}
+    finally:user.CloseClipboard()
+
 
 def copy_files_to_clipboard(paths,owner):
     if os.name!="nt":raise OSError("文件复制需要 Windows")

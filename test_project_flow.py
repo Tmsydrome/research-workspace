@@ -1,4 +1,4 @@
-"""Project folder, deletion and explicit-save checks, version 1.0.5."""
+"""Project folder, deletion and explicit-save checks, version 1.0.10."""
 import json,os,tempfile,tkinter as tk
 from pathlib import Path
 from types import SimpleNamespace
@@ -131,6 +131,47 @@ def main():
         with patch("app.messagebox.askyesnocancel",return_value=True):app.close()
         ws=Workspace(other);assert ws.data["name"]=="关闭保存项目名";ws.close()
         passed("关闭选择保存后持久化项目修改")
+        root,app=hidden_app(base,"config3")
+        with patch("app.filedialog.askdirectory",side_effect=AssertionError("Folder chooser invoked")):
+            app.add_project_button.invoke()
+        assert app.ws is None
+        passed("同级项目按钮在未打开工作区时提示打开目录")
+        app.open_workspace(str(path))
+        import copy
+        before=copy.deepcopy(app.ws.data)
+        current_map=app.map_id
+        nested=next(i for i,p in before["projects"].items() if p["parentId"])
+        app.project_tree.selection_set("p:"+nested)
+        with patch("app.filedialog.askdirectory",side_effect=AssertionError("Folder chooser invoked")), \
+             patch("app.simpledialog.askstring",return_value="  新课题  "):
+            assert app.add_project_button["text"]=="＋同级项目"
+            app.add_project_button.invoke()
+        peer=next(i for i in app.ws.data["projects"] if i not in before["projects"])
+        assert app.ws.data["projects"][peer]["parentId"] is None
+        assert app.ws.data["projects"][peer]["name"]=="新课题"
+        assert app.ws.root==path.resolve() and app.map_id==current_map
+        assert app.project_tree.parent("p:"+peer)==""
+        assert app.config["workspace"]==str(path.resolve())
+        for table in ("nodes","mindmaps","attachments"):
+            assert app.ws.data[table]==before[table],table
+        assert all(app.ws.data["projects"][i]==p for i,p in before["projects"].items())
+        passed("点击左侧按钮新增顶层同级项目，目录、导图、节点和附件保持完整")
+        app.undo();assert peer not in app.ws.data["projects"]
+        app.undo(True);assert peer in app.ws.data["projects"]
+        assert app.save()
+        persisted=json.loads((path/"workspace.json").read_text(encoding="utf-8"))
+        assert persisted["projects"][peer]["parentId"] is None
+        passed("同级项目支持保存、撤销和重做")
+        for response in (None,"","   "):
+            with patch("app.simpledialog.askstring",return_value=response):app.add_peer_project()
+        assert len(app.ws.data["projects"])==len(before["projects"])+1
+        app.project_tree.selection_set("m:"+current_map)
+        with patch("app.simpledialog.askstring",return_value="另一课题"), \
+             patch("app.filedialog.askdirectory",side_effect=AssertionError("Folder chooser invoked")):
+            app.add_peer_project()
+        assert sum(p["parentId"] is None for p in app.ws.data["projects"].values())==3
+        passed("取消与空名称保持原状，选择导图时仍新增顶层项目")
+        with patch("app.messagebox.askyesnocancel",return_value=True):app.close()
     result={"version":VERSION,"passed":len(CHECKS),"failed":0,"checks":CHECKS}
     Path("project_flow_results.json").write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding="utf-8")
     print(json.dumps(result,ensure_ascii=False,indent=2))

@@ -1,10 +1,11 @@
-"""Research Workspace desktop application, version 1.0.5."""
+"""Research Workspace desktop application, version 1.0.10."""
 from __future__ import annotations
 import copy
 import ctypes
 import json
 import os
 import queue
+import tempfile
 import threading
 import time
 import tkinter as tk
@@ -58,6 +59,7 @@ class App:
         root.bind_all("<Return>",lambda e:self.shortcut("sibling",e))
         root.bind_all("<Tab>",lambda e:self.shortcut("child",e))
         root.bind_all("<Control-f>",lambda e:self.search_entry.focus_set())
+        root.bind_all("<<Paste>>",self.paste_to_node)
         self.canvas.bind("<F2>",lambda e:self.edit_title())
         self.outline.bind("<F2>",lambda e:self.edit_title())
         root.bind_all("<Control-Return>",lambda e:self.open_node_details())
@@ -102,7 +104,8 @@ class App:
         row = ttk.Frame(self.sidebar)
         row.pack(fill="x")
         ttk.Label(row,text="当前项目",font=("Microsoft YaHei UI",11,"bold")).pack(side="left")
-        ttk.Button(row,text="＋项目",command=self.add_project).pack(side="right")
+        self.add_project_button=ttk.Button(row,text="＋同级项目",command=self.add_peer_project)
+        self.add_project_button.pack(side="right")
         self.project_tree = ttk.Treeview(self.sidebar,show="tree",selectmode="extended",style="Project.Treeview")
         self.project_tree.pack(fill="both",expand=True,pady=12)
         self.project_tree.bind("<<TreeviewSelect>>",self.select_project)
@@ -128,7 +131,7 @@ class App:
         self.canvas.configure(xscrollcommand=lambda *a:self.canvas_scrolled(sx,"x",a),
                               yscrollcommand=lambda *a:self.canvas_scrolled(sy,"y",a))
         self.canvas.grid(row=0,column=0,sticky="nsew")
-        self.empty_start=ttk.Button(self.canvas,text="＋ 新建项目",command=self.begin_project)
+        self.empty_start=ttk.Button(self.canvas,text="＋ 新建独立工作区",command=self.begin_project)
         sy.grid(row=0,column=1,sticky="ns")
         sx.grid(row=1,column=0,sticky="ew")
         self.overview=ttk.Frame(self.canvas,style="Card.TFrame",padding=7)
@@ -246,7 +249,7 @@ class App:
         self.export_button.state(["disabled"])
         self.attachment_info = tk.StringVar(value="HTML 使用内置修订工具；其他附件使用系统默认应用")
         ttk.Label(self.attachment_panel,textvariable=self.attachment_info,wraplength=290).pack(anchor="w",pady=3)
-        self.status = tk.StringVar(value="新建项目并选择保存文件夹，或打开已有项目")
+        self.status = tk.StringVar(value="打开已有项目文件夹，或通过文件菜单新建独立工作区")
         status_bar=ttk.Frame(self.root,padding=(12,5))
         status_bar.pack(fill="x")
         ttk.Label(status_bar,textvariable=self.status,anchor="w").pack(side="left")
@@ -301,7 +304,7 @@ class App:
         strip=ttk.Frame(self.root,padding=(8,2))
         strip.pack(fill="x")
         items=[
-            ("文件",[("打开项目文件夹",lambda:self.open_workspace()),("打开项目包…",self.open_project_package),
+            ("文件",[("新建独立工作区…",self.add_project),("打开项目文件夹",lambda:self.open_workspace()),("打开项目包…",self.open_project_package),
                      ("导出所选项目包…",self.export_project_package),("保存 · Ctrl+S",self.save),
                      ("导出大纲",self.export_outline),("备份工作区",self.backup_dialog),
                      ("从备份恢复",self.restore_dialog)]),
@@ -309,7 +312,7 @@ class App:
                      ("选择整个分支",self.select_branch),("缩进",self.indent),("提升",self.outdent),
                      ("上移",lambda:self.sort_node(-1)),("下移",lambda:self.sort_node(1)),
                      ("全局搜索",self.search_dialog)]),
-            ("插入",[("项目",self.add_project),("子文件夹",self.add_folder),("导图",self.add_map),
+            ("插入",[("同级项目",self.add_peer_project),("子文件夹",self.add_folder),("导图",self.add_map),
                      ("子主题",lambda:self.add_node(False)),("同级主题",lambda:self.add_node(True)),
                      ("归档文件",lambda:self.import_files(False)),("资源文件夹",lambda:self.import_files(True))]),
             ("查看",[("思维导图",lambda:self.switch_view("map")),("大纲",lambda:self.switch_view("outline")),
@@ -496,6 +499,12 @@ class App:
         "markdown": ("M", "#b79afb", {".md", ".markdown"}),
         "image": ("", "#f18bbe", {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp", ".svg", ".tif", ".tiff", ".ico"}),
         "pdf": ("F", "#f57c84", {".pdf"}),
+        "text": ("T", "#9bbad1", {".txt", ".log", ".rtf"}),
+        "video": ("V", "#8f9cf7", {".mp4", ".mov", ".avi", ".mkv", ".wmv", ".webm", ".m4v", ".mpeg", ".mpg", ".flv", ".ts"}),
+        "audio": ("A", "#65c6c1", {".mp3", ".wav", ".flac", ".m4a", ".aac", ".ogg", ".wma", ".aiff"}),
+        "archive": ("Z", "#d6ac65", {".zip", ".rar", ".7z", ".tar", ".gz", ".bz2", ".xz"}),
+        "model": ("C", "#70b5cc", {".stl", ".step", ".stp", ".obj", ".ply", ".3mf", ".fbx", ".glb", ".gltf"}),
+        "code": ("C", "#a4bd75", {".py", ".js", ".tsx", ".jsx", ".json", ".xml", ".yaml", ".yml", ".sql", ".r", ".cpp", ".c", ".css"}),
         "folder": ("D", "#e7bc69", {"folder"}),
         "file": ("·", "#94b5ce", set())}
 
@@ -515,6 +524,9 @@ class App:
                 "D":["110","101","101","101","110"],
                 "·":["000","000","010","000","000"]}
         self.file_icons={}
+        glyphs.update({"T":["111","010","010","010","010"],"V":["100","110","111","110","100"],
+                       "A":["011","010","010","110","110"],"Z":["111","001","010","100","111"],
+                       "C":["111","100","100","100","111"]})
         for kind,(letter,color,_) in self.FILE_TYPES.items():
             icon=tk.PhotoImage(width=20,height=22)
             # Pixel shapes stay sharp at the native list size and use Tk only.
@@ -524,6 +536,11 @@ class App:
             if kind=="image":
                 for x,y in [(7,7),(6,12),(7,11),(8,10),(9,11),(10,12),(11,13),(12,12),(13,11)]:
                     icon.put("#ffffff",to=(x,y,x+2,y+2))
+            elif kind=="model":
+                for x,y in [(10,7),(9,8),(11,8),(8,9),(12,9),(7,10),(13,10),
+                            (8,11),(12,11),(9,12),(11,12),(10,13),(7,11),(7,12),(7,13),(7,14),
+                            (8,15),(9,16),(10,17),(11,16),(12,15),(13,14),(13,13),(13,12),(13,11),(10,14),(10,15),(10,16)]:
+                    icon.put("#ffffff",to=(x,y,x+1,y+1))
             else:
                 for y,row in enumerate(glyphs[letter]):
                     for x,pixel in enumerate(row):
@@ -560,7 +577,19 @@ class App:
         if badge:
             self.rounded_box((x-12*z,y-14*z,x+24*z,y+14*z),self.theme["panel"],
                              self.theme["accent"],z,tags)
-        if kind=="image":
+        if kind=="video":
+            self.canvas.create_rectangle(x-6*z,y-9*z,x+17*z,y+9*z,outline=ink,width=max(1,2*z),tags=tags)
+            self.canvas.create_polygon(x+2*z,y-5*z,x+2*z,y+5*z,x+10*z,y,fill=ink,outline=ink,tags=tags)
+        elif kind=="audio":
+            self.canvas.create_line(x+5*z,y+6*z,x+5*z,y-8*z,x+14*z,y-10*z,x+14*z,y+3*z,fill=ink,width=max(1,2*z),tags=tags)
+            for ax,ay in ((1,6),(10,3)):
+                self.canvas.create_oval(x+(ax-3)*z,y+(ay-2)*z,x+(ax+3)*z,y+(ay+2)*z,fill=ink,outline=ink,tags=tags)
+        elif kind=="model":
+            self.canvas.create_polygon(x+5*z,y-10*z,x+16*z,y-4*z,x+16*z,y+7*z,x+5*z,y+13*z,x-6*z,y+7*z,x-6*z,y-4*z,
+                                       fill="",outline=ink,width=max(1,2*z),tags=tags)
+            self.canvas.create_line(x-6*z,y-4*z,x+5*z,y+2*z,x+16*z,y-4*z,fill=ink,width=max(1,2*z),tags=tags)
+            self.canvas.create_line(x+5*z,y+2*z,x+5*z,y+13*z,fill=ink,width=max(1,2*z),tags=tags)
+        elif kind=="image":
             self.canvas.create_rectangle(x-6*z,y-9*z,x+17*z,y+9*z,
                                          outline=ink,width=max(1,2*z),tags=tags)
             self.canvas.create_oval(x-2*z,y-6*z,x+3*z,y-z,fill=ink,outline=ink,tags=tags)
@@ -700,7 +729,8 @@ class App:
     def workspace_menu(self):
         menu = self.menu()
         menu.add_command(label="打开项目文件夹",command=lambda:self.open_workspace())
-        menu.add_command(label="新建项目…",command=self.add_project)
+        menu.add_command(label="新建独立工作区…",command=self.add_project)
+        menu.add_command(label="新建同级项目…",command=self.add_peer_project)
         menu.add_command(label="打开项目包…",command=self.open_project_package)
         menu.add_command(label="导出所选项目包…",command=self.export_project_package)
         menu.add_command(label="保存 · Ctrl+S",command=self.save)
@@ -716,7 +746,7 @@ class App:
         if not path:
             path = filedialog.askdirectory(title="打开项目文件夹",parent=self.root)
         if not path:
-            self.status.set("点击“＋项目”新建，或“打开项目”选择已有项目目录")
+            self.status.set("通过“打开项目文件夹”打开已有资料，或“文件 → 新建独立工作区”选择保存目录")
             return
         try:
             if self.ws and Path(path).resolve()==self.ws.root:
@@ -870,7 +900,7 @@ class App:
         if parent:
             self.add_folder(parent)
             return
-        directory=filedialog.askdirectory(title="选择新项目保存文件夹",parent=self.root)
+        directory=filedialog.askdirectory(title="选择独立工作区保存文件夹",parent=self.root)
         if not directory:return
         existing=Path(directory)/"workspace.json"
         if existing.exists():
@@ -882,7 +912,7 @@ class App:
             if populated:
                 self.open_workspace(directory)
                 return
-        name=simpledialog.askstring("新建项目","项目名称",initialvalue=Path(directory).name,parent=self.root)
+        name=simpledialog.askstring("新建独立工作区","首个项目名称",initialvalue=Path(directory).name,parent=self.root)
         if not name:return
         if not self.open_workspace(directory) or self.ws.root!=Path(directory).resolve():return
         self.checkpoint()
@@ -892,6 +922,21 @@ class App:
         self.render();self.load_editor(None)
         self.changed();self.save()
         self.status.set("项目已创建："+str(self.ws.root)+" · 在项目下新建文件夹或导图")
+
+    def add_peer_project(self):
+        if self.busy:return
+        if not self.ws:
+            self.status.set("请先打开项目文件夹，或通过“文件 → 新建独立工作区”选择保存目录")
+            return
+        name=simpledialog.askstring("新建同级项目","项目名称（添加到当前工作区顶层）",parent=self.root)
+        if not name or not name.strip():return
+        self.finish_inline()
+        self.checkpoint()
+        project=self.ws.add_project(name.strip())
+        self.refresh_projects("p:"+project)
+        self.selection_source="project"
+        self.changed()
+        self.status.set("已新增同级项目："+name.strip()+" · Ctrl+S 保存")
 
     def add_folder(self,parent=None):
         if not self.guard():return
@@ -931,7 +976,7 @@ class App:
         if item and item not in self.project_tree.selection():
             self.project_tree.selection_set(item)
         menu=self.menu()
-        menu.add_command(label="新建项目…",command=self.add_project)
+        menu.add_command(label="新建同级项目…",command=self.add_peer_project)
         if self.project_tree.selection():
             menu.add_command(label="导出所选项目包…",command=self.export_project_package)
         if item:
@@ -1083,7 +1128,7 @@ class App:
             self.canvas.create_text(230,140,text="创建或打开项目文件夹\n按章节新建思维导图",
                 fill=p["muted"],font=("Microsoft YaHei UI",13),justify="left")
             self.canvas.create_window(230,230,window=self.empty_start)
-            self.empty_start.configure(text="＋ 新建章节导图" if self.ws and self.ws.data["projects"] else "＋ 新建项目并选择保存文件夹")
+            self.empty_start.configure(text="＋ 新建章节导图" if self.ws and self.ws.data["projects"] else ("＋ 新建同级项目" if self.ws else "＋ 新建独立工作区"))
             self.overview.place_forget()
             self.update_count()
             self.refresh_drop_regions()
@@ -1122,7 +1167,13 @@ class App:
             pending.extend((k,d+1,k if i==root else top) for k in reversed(kids))
         z=self.zoom
         title_font=tkfont.Font(family="Microsoft YaHei UI",size=11,weight="bold")
-        widths,heights={},{}
+        attachment_font=tkfont.Font(family="Microsoft YaHei UI",size=9)
+        widths,heights,title_heights,attachment_heights={},{},{},{}
+        def text_height(text,width,font):
+            probe=self.canvas.create_text(0,0,text=text,anchor="nw",width=width*z,font=font)
+            bounds=self.canvas.bbox(probe)
+            self.canvas.delete(probe)
+            return (bounds[3]-bounds[1])/z if bounds else 0
         for i in self.visible:
             n=data["nodes"][i]
             d=depth[i]
@@ -1131,9 +1182,13 @@ class App:
             file_node=len(files)==1 and n["title"]==data["attachments"][files[0]]["originalName"] and not n["bodyRichText"]["text"] and not n["notes"]
             lines=content.split("\n")
             measure=max(title_font.measure(line) for line in lines)
-            widths[i]=min(560,max(170,measure+(74 if file_node else 58)))
-            line_count=sum(max(1,(title_font.measure(line)+widths[i]-53)//(widths[i]-52)) for line in lines)
-            heights[i]=max(54,24+line_count*24+(0 if file_node else len(files)*30))
+            attachment_width=max((attachment_font.measure(data["attachments"][a]["originalName"])+66 for a in files),default=0) if not file_node else 0
+            widths[i]=min(560,max(170,measure+(74 if file_node else 58),attachment_width))
+            title_heights[i]=max(54,24+text_height(content,widths[i]-(68 if file_node else 28),
+                ("Microsoft YaHei UI",max(5,int((13 if d==0 else 11)*z)),"bold")))
+            attachment_heights[i]=[] if file_node else [max(30,12+text_height(data["attachments"][a]["originalName"],widths[i]-58,
+                ("Microsoft YaHei UI",max(5,int(9*z))))) for a in files]
+            heights[i]=title_heights[i]+sum(attachment_heights[i])+(8 if attachment_heights[i] else 0)
         # Subtree spans include each card's actual attachment rows.
         spans={}
         for i in reversed(self.visible):
@@ -1195,7 +1250,7 @@ class App:
             files=n["attachmentIds"]
             file_node=len(files)==1 and n["title"]==data["attachments"][files[0]]["originalName"] and not n["bodyRichText"]["text"] and not n["notes"]
             label=self.node_content(i)
-            title_height=heights[i]-(0 if file_node else len(files)*30)
+            title_height=title_heights[i]
             self.title_y[i]=y1+title_height*z/2
             self.canvas.create_text(x1+14*z,self.title_y[i],text=label,anchor="w",
                 width=(widths[i]-(68 if file_node else 28))*z,fill=fg,
@@ -1206,14 +1261,14 @@ class App:
                 self.draw_attachment_icon(x2-30*z,(y1+y2)/2,z,tags+("attachment",a),data["attachments"][a],True)
             else:
                 row_top=y1+title_height*z
-                for a in files:
+                for a,row_height in zip(files,attachment_heights[i]):
                     filename=data["attachments"][a]["originalName"]
-                    self.attachment_hits[(i,a)]=(x1+9*z,row_top,x2-9*z,row_top+28*z)
-                    self.draw_attachment_icon(x1+18*z,row_top+14*z,.7*z,tags+("attachment",a),data["attachments"][a])
-                    self.canvas.create_text(x1+44*z,row_top+14*z,text=filename,anchor="w",
+                    self.attachment_hits[(i,a)]=(x1+9*z,row_top,x2-9*z,row_top+row_height*z)
+                    self.draw_attachment_icon(x1+18*z,row_top+row_height*z/2,.7*z,tags+("attachment",a),data["attachments"][a])
+                    self.canvas.create_text(x1+44*z,row_top+row_height*z/2,text=filename,anchor="w",
                         width=(widths[i]-58)*z,fill=fg,font=("Microsoft YaHei UI",max(5,int(9*z))),
                         tags=tags+("attachment",a))
-                    row_top+=30*z
+                    row_top+=row_height*z
             if kids_of(i):
                 radius=max(12,min(20,16*z))
                 cx,cy=x2+max(56*z,32)/2,(y1+y2)/2
@@ -1435,8 +1490,10 @@ class App:
         self.root.after_idle(finish)
 
     def begin_project(self):
-        if not self.ws or not self.ws.data["projects"]:
+        if not self.ws:
             self.add_project()
+        elif not self.ws.data["projects"]:
+            self.add_peer_project()
         else:
             if not self.current_project():
                 self.refresh_projects("p:"+next(iter(self.ws.data["projects"])))
@@ -1529,7 +1586,7 @@ class App:
         menu=self.menu()
         for label,cmd in [("添加子节点 · Tab",lambda:self.add_node(False)),
             ("添加同级 · Enter",lambda:self.add_node(True)),("选择整个分支",self.select_branch),
-            ("编辑内容",self.edit_title),
+            ("编辑内容",self.edit_title),("粘贴到当前节点 · Ctrl+V",self.paste_to_node),
             ("折叠 / 展开",self.toggle_node),("缩进",self.indent),("提升",self.outdent),
             ("上移",lambda:self.sort_node(-1)),("下移",lambda:self.sort_node(1)),
             ("删除所选节点",self.delete_nodes)]:
@@ -1912,6 +1969,48 @@ class App:
                 messagebox.showwarning("部分导入失败","\n".join(errors),parent=self.root)
         self.run_task(f"复制归档 {len(paths)} 项",work,done)
 
+    def paste_to_node(self,event=None):
+        if event is not None:
+            if isinstance(event.widget,(tk.Text,tk.Entry,ttk.Entry,ttk.Combobox,ttk.Spinbox)):
+                return
+            if event.widget.winfo_toplevel()!=self.root:return
+        if not self.guard():return "break"
+        if self.focus_node not in self.ws.data["nodes"]:
+            self.status.set("请先选择一个节点")
+            return "break"
+        try:
+            from native_drop import read_clipboard
+            content=read_clipboard(self.root.winfo_id())
+            if content.get("files"):
+                self.import_files(paths=content["files"])
+            elif "image" in content:
+                suffix,data=content["image"]
+                node=self.focus_node
+                self.checkpoint()
+                def work():
+                    with tempfile.TemporaryDirectory(prefix="research_image_") as directory:
+                        source=Path(directory)/("截图_"+time.strftime("%Y%m%d_%H%M%S")+suffix)
+                        source.write_bytes(data)
+                        return self.ws.import_attachment(node,source)
+                def done(result):
+                    self.load_editor(self.focus_node)
+                    self.render();self.changed()
+                    self.status.set("图片已添加到节点附件")
+                self.run_task("归档剪贴板图片",work,done)
+            elif content.get("text"):
+                self.finish_inline()
+                self.editor_changed()
+                node=self.ws.data["nodes"][self.focus_node]
+                self.checkpoint()
+                existing=node["bodyRichText"]["text"]
+                node["bodyRichText"]["text"]=existing+("\n" if existing and not existing.endswith("\n") else "")+content["text"]
+                self.load_editor(self.focus_node)
+                self.render();self.changed()
+                self.status.set("文本已添加到节点正文")
+            else:self.status.set("请先复制文件、图片或文字")
+        except Exception as error:self.error(error)
+        return "break"
+
     def attachment_details(self,e=None):
         self.update_export_button()
         ids=self.attach_tree.selection()
@@ -1930,6 +2029,7 @@ class App:
         menu=self.menu()
         target=i or next(iter(self.attach_tree.selection()),None)
         entries=[("打开附件",lambda:self.open_attachment(target)),
+            ("粘贴到当前节点",self.paste_to_node),
             ("复制附件",self.copy_selected_attachments),
             ("打开归档目录",lambda:self.open_attachment(target,folder=True)),
             ("刷新大小与修改时间",lambda:self.load_editor(self.focus_node)),

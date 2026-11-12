@@ -1,4 +1,4 @@
-// Research Workspace portable launcher, version 1.0.5.
+// Research Workspace portable launcher, version 1.0.10.
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -6,8 +6,8 @@ using System.Windows.Forms;
 
 [assembly: System.Reflection.AssemblyTitle("Research Workspace")]
 [assembly: System.Reflection.AssemblyProduct("Research Workspace")]
-[assembly: System.Reflection.AssemblyVersion("1.0.5.0")]
-[assembly: System.Reflection.AssemblyFileVersion("1.0.5.0")]
+[assembly: System.Reflection.AssemblyVersion("1.0.10.0")]
+[assembly: System.Reflection.AssemblyFileVersion("1.0.10.0")]
 class Launcher {
     [STAThread]
     static void Main(string[] args) {
@@ -29,7 +29,7 @@ class Launcher {
             }
             Process.Start(start);
         } catch (Exception e) {
-            MessageBox.Show(e.Message, "Research Workspace v1.0.0",
+            MessageBox.Show(e.Message, "Research Workspace v1.0.10",
                             MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }

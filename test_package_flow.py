@@ -1,4 +1,4 @@
-"""Project package and file icon checks, version 1.0.5. Hidden windows only."""
+"""Project package and file icon checks, version 1.0.10. Hidden windows only."""
 import copy,ctypes,json,os,struct,tempfile,time,tkinter as tk,zipfile
 from pathlib import Path
 from types import SimpleNamespace

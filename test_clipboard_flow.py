@@ -1,4 +1,4 @@
-"""Attachment clipboard checks using an isolated clipboard sink, version 1.0.5."""
+"""Attachment clipboard checks using an isolated clipboard sink, version 1.0.10."""
 import ctypes,json,os,struct,tempfile,tkinter as tk
 from pathlib import Path
 from types import SimpleNamespace

@@ -1,4 +1,4 @@
-"""Local desktop export checks, version 1.0.5."""
+"""Local desktop export checks, version 1.0.10."""
 import json,re,subprocess,tempfile
 from pathlib import Path
 from unittest.mock import patch
@@ -43,7 +43,7 @@ def main():
                 assert len(list(desktop.iterdir()))==count
                 with urlopen(url) as response:html=response.read().decode("utf-8")
                 assert 'HTML修订批注工具 v0.4.7' in html and 'id="toggleComments"' in html
-                assert 'id="splitter"' in html and 'Workspace editor integration v1.0.5' in html
+                assert 'id="splitter"' in html and 'Workspace editor integration v1.0.10' in html
                 assert '<div class="creator-profile" aria-label="Tmsydrome">' in html
                 assert not re.search(r'<a[^>]*class="creator-profile"',html)
                 functions=re.search(r'async function exportSelected\(\)\{.*?\n\}',html,re.S)[0]
