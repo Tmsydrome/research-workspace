@@ -1,4 +1,4 @@
-"""Windows file drop and clipboard transfer, version 1.0.10."""
+"""Windows file drop and clipboard transfer, version 1.0.11."""
 import ctypes
 import uuid
 import os,json

@@ -1,4 +1,4 @@
-# Research Workspace v1.0.10
+# Research Workspace v1.0.11
 
 Windows 10/11 x64 本地科研资料工作区：用思维导图组织项目、章节和附件，在本地保存与迁移资料。
 
@@ -6,7 +6,7 @@ Windows 10/11 x64 本地科研资料工作区：用思维导图组织项目、�
 
 ## 安装与运行
 
-使用 v1.0.10_Research_Workspace_Portable.zip，完整解压后运行 v1.0.10_Research_Workspace.exe。便携版包含 Python 3.12 与 Tk/Tcl 运行环境。
+使用 v1.0.11_Research_Workspace_Portable.zip，完整解压后运行 v1.0.11_Research_Workspace.exe。便携版包含 Python 3.12 与 Tk/Tcl 运行环境。
 
 HTML 编辑器随软件打包，在本机浏览器应用窗口中显示；其余附件使用 Windows 默认应用打开。内置编辑器的导出文件直接保存到系统桌面，同名文件自动添加编号；头像和作者名称用于展示。软件数据写入用户选择的项目目录。
 
@@ -25,6 +25,12 @@ HTML 编辑器随软件打包，在本机浏览器应用窗口中显示；其余
 选中节点后按 Ctrl+V，或在节点、右侧附件列表的右键菜单选择“粘贴到当前节点”。复制的普通文字追加到节点正文；复制的文件、文件夹及截图添加为当前节点附件。支持多文件与任意文件扩展名，按 Ctrl+S 保存项目。Excel 单元格或 Word 文字按剪贴板提供的文本添加到正文。正文、标题及搜索输入框使用常规文字粘贴。截图优先保留 PNG，Windows 位图保存为 BMP。
 
 视频、音频、压缩包、三维模型、代码数据、文本、PDF、Office 文档及文件夹显示对应类别图标，其余格式使用通用文件图标。右侧“附件／画布”选中页签使用高亮背景、较大字号和粗体。
+
+## 动态网页与文字批注
+
+HTML 附件打开后运行原网页脚本，动态生成的 SVG、Canvas 图表和表格可正常显示，网页中的切换按钮与下拉框继续使用。选中文字后点击“添加批注”，通过顶部“保存归档”保存；“导出到桌面”输出所选版本。网页内容与归档保存接口分别运行。文字修订和批注计入未保存状态，图表筛选操作保持浏览状态。
+
+在网页内部按 Ctrl+S 会聚焦顶部保存按钮，再按 Enter 保存；直接点击“保存归档”也可保存。
 
 ## 附件与 HTML 修订
 
@@ -77,6 +83,7 @@ Word、Excel、PPT、HTML、Markdown 和图片显示不同的类型图标。单�
     python test_clipboard_flow.py
     python test_paste_flow.py
     python test_attachment_layout.py
+    python test_dynamic_html_flow.py
 
 内置编辑器导出检查使用 Node.js 执行页面处理程序，并将文件写入临时桌面目录。
 

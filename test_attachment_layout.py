@@ -1,4 +1,4 @@
-"""Canvas attachment geometry regression, version 1.0.10."""
+"""Canvas attachment geometry regression, version 1.0.11."""
 import json,os,tempfile,tkinter as tk
 from pathlib import Path
 from app import App

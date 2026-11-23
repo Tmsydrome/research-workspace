@@ -1,4 +1,4 @@
-"""Node paste and clipboard decoding checks, version 1.0.10."""
+"""Node paste and clipboard decoding checks, version 1.0.11."""
 import base64,ctypes,json,os,struct,tempfile,time,tkinter as tk
 from pathlib import Path
 from types import SimpleNamespace

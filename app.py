@@ -1,4 +1,4 @@
-"""Research Workspace desktop application, version 1.0.10."""
+"""Research Workspace desktop application, version 1.0.11."""
 from __future__ import annotations
 import copy
 import ctypes
